@@ -1,17 +1,12 @@
 /**
- * Persistent OpenViking session helpers for Claude Code hooks.
+ * Persistent OpenViking session helpers for Grok hooks.
  *
- * ovSessionId is deterministically derived from the CC session_id so that
- * resume / multi-hook invocations all target the same OV session.
- * This replaces the old one-shot session model (create → add → extract → delete)
- * with a persistent session that lets OV's own commit/extract pipeline run.
+ * ovSessionId is derived from the Grok sessionId so resume / multi-hook
+ * invocations target the same OV session.
  *
  * Format:
- *   parent:    cc-<ccSessionId>
- *   subagent:  cc-<ccSessionId>__subagent-<subagentId>
- *
- * The CC session_id is preserved verbatim so the OV id is human-readable and
- * the parent/subagent lineage is visible at a glance.
+ *   parent:    gk-<grokSessionId>
+ *   subagent:  gk-<grokSessionId>__subagent-<subagentId>
  *
  * Works with endpoints in openviking/server/routers/sessions.py:
  *   - POST   /api/v1/sessions/{id}/messages           (auto_create=true by default)
@@ -26,20 +21,20 @@ import {
 } from "../shared/session-model.mjs";
 
 /**
- * Check whether a CC session_id or cwd matches any bypass pattern.
+ * Check whether a sessionId or cwd matches any bypass pattern.
  * Also honours OPENVIKING_BYPASS_SESSION env var (via cfg.bypassSession).
  */
 export { isBypassed };
 
 /**
- * Derive a stable OV session ID from a CC session_id.
+ * Derive a stable OV session ID from a Grok sessionId.
  *
- * Optionally append a suffix (e.g. subagent_id) for session isolation. The suffix
+ * Optionally append a suffix (e.g. subagent id) for session isolation. The suffix
  * is normalized: `:` → `-` (so `subagent:abc123` → `subagent-abc123`) and any
- * characters outside [A-Za-z0-9._-] become `-`. Result: `cc-<uuid>__<suffix>`.
+ * characters outside [A-Za-z0-9._-] become `-`. Result: `gk-<id>__<suffix>`.
  */
-export function deriveOvSessionId(ccSessionId, suffix = "") {
-  return deriveHarnessSessionId("cc-", ccSessionId, suffix);
+export function deriveOvSessionId(grokSessionId, suffix = "") {
+  return deriveHarnessSessionId("gk-", grokSessionId, suffix);
 }
 
 /**

@@ -78,6 +78,37 @@ export function latestAssistantTextFromHistory(entries) {
   return "";
 }
 
+export function extractTurnsFromHistory(entries) {
+  const turns = [];
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object") continue;
+    if (entry.type === "user") {
+      if (entry.synthetic_reason) continue;
+      const text = flattenContent(entry.content);
+      const query = extractUserQuery(text);
+      const trimmed = (query || text).trim();
+      if (!trimmed || trimmed.startsWith("<system-reminder>")) continue;
+      turns.push({ role: "user", text: trimmed });
+      continue;
+    }
+    if (entry.type === "assistant") {
+      const text = flattenContent(entry.content).trim();
+      if (text) turns.push({ role: "assistant", text });
+    }
+  }
+  return turns;
+}
+
+export function readTurnsFromSession(sessionId, cwd = "") {
+  const path = grokChatHistoryPath(sessionId, cwd);
+  if (!path) return [];
+  try {
+    return extractTurnsFromHistory(parseChatHistory(readFileSync(path, "utf8")));
+  } catch {
+    return [];
+  }
+}
+
 export function readLatestTurnFromSession(sessionId, cwd = "") {
   const path = grokChatHistoryPath(sessionId, cwd);
   if (!path) return { prompt: "", assistant: "" };

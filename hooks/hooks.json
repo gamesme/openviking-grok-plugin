@@ -40,7 +40,51 @@
           {
             "type": "command",
             "command": "node ${GROK_PLUGIN_ROOT}/scripts/auto-capture.mjs",
-            "timeout": 45
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${GROK_PLUGIN_ROOT}/scripts/auto-capture.mjs",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "StopCancelled": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${GROK_PLUGIN_ROOT}/scripts/auto-capture.mjs",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${GROK_PLUGIN_ROOT}/scripts/subagent-start.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${GROK_PLUGIN_ROOT}/scripts/subagent-stop.mjs",
+            "timeout": 15
           }
         ]
       }
@@ -62,7 +106,7 @@
           {
             "type": "command",
             "command": "node ${GROK_PLUGIN_ROOT}/scripts/session-end.mjs",
-            "timeout": 30
+            "timeout": 8
           }
         ]
       }

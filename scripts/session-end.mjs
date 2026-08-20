@@ -4,8 +4,9 @@ import { isPluginEnabled, loadConfig } from "./config.mjs";
 import { createLogger } from "./debug-log.mjs";
 import { normalizeHookInput, parseHookInput, readHookStdinSync } from "./grok-payload.mjs";
 import { maybeDetach } from "./lib/async-writer.mjs";
-import { commitSession, isBypassed, makeFetchJSON } from "./lib/ov-session.mjs";
-import { deriveHarnessSessionId } from "./shared/session-model.mjs";
+import { getEffectivePeerId } from "./lib/identity.mjs";
+import { commitSession, deriveOvSessionId, isBypassed, makeFetchJSON } from "./lib/ov-session.mjs";
+import { subagentSuffix } from "./lib/turn-end.mjs";
 
 function approve() {
   process.stdout.write(`${JSON.stringify({ decision: "approve" })}\n`);
@@ -41,9 +42,10 @@ async function main() {
     return;
   }
 
-  const ovSessionId = deriveHarnessSessionId("gk-", input.sessionId);
+  const ovSessionId = deriveOvSessionId(input.sessionId, subagentSuffix(input));
+  const peerId = getEffectivePeerId(cfg).peerId;
   try {
-    const res = await commitSession(fetchJSON, ovSessionId, {});
+    const res = await commitSession(fetchJSON, ovSessionId, { peer_id: peerId });
     if (!res.ok) logError("commitSession", res.error || res);
     else log("committed", { ovSessionId });
   } catch (err) {

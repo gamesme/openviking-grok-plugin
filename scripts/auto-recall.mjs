@@ -18,7 +18,7 @@ import { normalizeHookInput, parseHookInput, readHookStdinSync } from "./grok-pa
 import { extractUserQuery } from "./grok-transcript.mjs";
 import { isBypassed, makeFetchJSON } from "./lib/ov-session.mjs";
 import { writeJsonState } from "./lib/state.mjs";
-import { getEffectivePeerId } from "./lib/workspace-peer.mjs";
+import { getEffectivePeerId } from "./lib/identity.mjs";
 import { buildRecallBlock } from "./shared/recall-core.mjs";
 
 function approve(msg) {
@@ -79,10 +79,7 @@ async function main() {
     return;
   }
 
-  const effectivePeer = getEffectivePeerId(cfg, {
-    sessionId: input.sessionId,
-    cwd: input.cwd,
-  });
+  const effectivePeer = getEffectivePeerId(cfg);
 
   try {
     const block = await buildRecallBlock(fetchJSON, cfg, query, {

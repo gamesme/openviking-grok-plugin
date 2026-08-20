@@ -1,8 +1,8 @@
 /**
- * Shared structured debug logger for Claude Code hook scripts.
+ * Shared structured debug logger for Grok hook scripts.
  *
- * Activation: OPENVIKING_DEBUG=1 env var  OR  claude_code.debug: true in ov.conf.
- * Log path:   OPENVIKING_DEBUG_LOG env var OR  ~/.openviking/logs/cc-hooks.log.
+ * Activation: OPENVIKING_DEBUG=1 env var  OR  grok_code.debug: true in ov.conf.
+ * Log path:   OPENVIKING_DEBUG_LOG env var OR  ~/.openviking/logs/grok-hooks.log.
  * Format:     JSON Lines — { ts, hook, stage, data } | { ts, hook, stage, error }.
  *
  * When inactive, log() and logError() are zero-cost no-ops.

@@ -18,7 +18,9 @@ import { dirname, join } from "node:path";
 import { isPluginEnabled, loadConfig } from "./config.mjs";
 import { createLogger } from "./debug-log.mjs";
 import { normalizeHookInput, parseHookInput, readHookStdinSync } from "./grok-payload.mjs";
+import { getEffectivePeerId } from "./lib/identity.mjs";
 import {
+  deriveOvSessionId,
   getSessionContext,
   isBypassed,
   makeFetchJSON,
@@ -26,8 +28,6 @@ import {
 import { replayPending } from "./lib/pending-queue.mjs";
 import { buildProfileBlock } from "./lib/profile-inject.mjs";
 import { writeJsonState } from "./lib/state.mjs";
-import { getEffectivePeerId } from "./lib/workspace-peer.mjs";
-import { deriveHarnessSessionId } from "./shared/session-model.mjs";
 
 function approve(additionalContext) {
   const out = { decision: "approve" };
@@ -77,8 +77,8 @@ async function main() {
   const fetchJSON = makeFetchJSON(cfg);
   const input = normalizeHookInput(parseHookInput(readHookStdinSync()));
   const { sessionId, cwd, source } = input;
-  const ovSessionId = sessionId ? deriveHarnessSessionId("gk-", sessionId) : "";
-  const effectivePeer = getEffectivePeerId(cfg, { sessionId, cwd });
+  const ovSessionId = sessionId ? deriveOvSessionId(sessionId) : "";
+  const effectivePeer = getEffectivePeerId(cfg);
 
   log("start", { source, sessionId, ovSessionId, peerSource: effectivePeer.source });
 
