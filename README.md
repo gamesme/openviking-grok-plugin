@@ -27,7 +27,7 @@ Hook state lives in `GROK_PLUGIN_DATA` (fallback `~/.grok/plugin-data/openviking
 
 ## What Grok cannot do yet
 
-Grok ignores hook stdout on `SessionStart` and `UserPromptSubmit`, so profile/auto-recall cannot be stuffed into the prompt the way Claude and Codex do. The skill plus MCP `find`/`search` cover that gap.
+Grok ignores hook stdout on `SessionStart`, `UserPromptSubmit`, and `PostToolUse`, so profile/auto-recall cannot be stuffed into the prompt the way Claude and Codex do, and a Claude-style skill-experience `PostToolUse` hook would be dead code here. The skill plus MCP `find`/`search` cover that gap.
 
 ## Install
 
