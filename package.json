@@ -1,6 +1,6 @@
 {
   "name": "openviking-grok-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenViking memory plugin for Grok — semantic long-term memory",
   "type": "module",
   "scripts": {

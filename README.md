@@ -2,7 +2,16 @@
 
 Grok-side counterpart of the official Claude Code / Codex memory plugins, and sibling of [openviking-kimi-plugin](https://github.com/gamesme/openviking-kimi-plugin).
 
-It reuses the same `ovcli.conf` credentials, stdio MCP proxy, recall, and session APIs. Session IDs are stored as `gk-<grokSessionId>`. Actor peer is always `grok`.
+It reuses the same `ovcli.conf` credentials, stdio MCP proxy, recall, and session APIs. Session IDs are stored as `gk-<grokSessionId>`.
+
+Peer identity is **not** hardcoded. Same chain as the [official Claude / Codex plugins](https://github.com/volcengine/OpenViking/tree/main/examples):
+
+1. `OPENVIKING_*` environment variables (`OPENVIKING_PEER_ID`, `OPENVIKING_WORKSPACE_PEER`, …)
+2. `~/.openviking/ovcli.conf` (`plugin.grok` overrides `plugin`)
+3. `~/.openviking/ov.conf` (`grok_code` section)
+4. Workspace-path derivation, unless `OPENVIKING_WORKSPACE_PEER=0`
+
+On Grok, a typical host config is `[shell_environment_policy.set]` in `~/.grok/config.toml`.
 
 ## What works on Grok
 

@@ -5,7 +5,7 @@ description: Use OpenViking long-term memory and viking:// resources. Trigger wh
 
 Grok cannot inject OpenViking hook stdout on SessionStart or UserPromptSubmit. Do not wait for an auto-injected memory block.
 
-Actor peer is always `grok`. Never derive a peer from the working directory. Same user key as Claude (`claude`) and Codex (`codex`); only the peer name differs.
+Actor peer is resolved the same way as the official Claude / Codex plugins: `OPENVIKING_PEER_ID` env, then `ovcli.conf` `plugin.grok`, then `ov.conf` `grok_code.peerId`. If none is set and `OPENVIKING_WORKSPACE_PEER` is not `0`, derive a peer from the working directory. Do not assume the peer is `grok`.
 
 When the user asks about themselves, preferences, prior decisions, or anything stored in OpenViking:
 

@@ -1,16 +1,19 @@
 /**
- * Shared configuration loader for the Claude Code OpenViking memory plugin.
+ * Shared configuration loader for the Grok OpenViking memory plugin.
  *
- * Resolution priority (highest → lowest):
+ * Resolution priority (highest → lowest), matching the official Claude/Codex plugins:
  *   1. Environment variables (OPENVIKING_*)
- *   2. ovcli.conf (CLI client config: url, api_key, account, user) — connection only
- *   3. ov.conf fields (server section + claude_code section) — legacy; new deployments should
- *      prefer env vars. Tuning fields under claude_code.* are still honored for backward compat.
+ *   2. ovcli.conf (connection fields + optional plugin / plugin.grok)
+ *   3. ov.conf fields (server section + grok_code section)
  *   4. Built-in defaults
+ *
+ * Peer identity is never hardcoded. OPENVIKING_PEER_ID / OPENVIKING_WORKSPACE_PEER
+ * come from the host env (e.g. ~/.grok/config.toml shell_environment_policy),
+ * ovcli.conf plugin.grok, or ov.conf grok_code — then workspace derivation.
  *
  * Enable/disable:
  *   - OPENVIKING_MEMORY_ENABLED env var (0/false/no = off, 1/true/yes = on)
- *   - claude_code.enabled field in ov.conf (false = off)
+ *   - grok_code.enabled field in ov.conf (false = off)
  *   - Fallback: enabled when ov.conf or ovcli.conf exists, disabled otherwise
  *
  * Env vars covered (full list):
@@ -91,12 +94,23 @@ function tryLoadJsonFile(envVar, defaultPath) {
   }
 }
 
+function loadGrokPluginSettings(cliFile) {
+  const plugin = cliFile.plugin && typeof cliFile.plugin === "object" ? cliFile.plugin : {};
+  const shared = {};
+  for (const [key, value] of Object.entries(plugin)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) continue;
+    shared[key] = value;
+  }
+  const scoped = plugin.grok && typeof plugin.grok === "object" ? plugin.grok : {};
+  return { ...shared, ...scoped };
+}
+
 /**
  * Determine whether the plugin is enabled.
  *
  * Priority:
  *   1. OPENVIKING_MEMORY_ENABLED env var
- *   2. claude_code.enabled in ov.conf
+ *   2. grok_code.enabled in ov.conf
  *   3. Whether ov.conf or ovcli.conf exists and is parseable
  *
  * When force-enabled via env var (=1) without config files, the caller must
@@ -108,8 +122,8 @@ export function isPluginEnabled() {
 
   const ovConf = tryLoadJsonFile("OPENVIKING_CONFIG_FILE", DEFAULT_OV_CONF_PATH);
   if (ovConf) {
-    const cc = ovConf.file.claude_code || {};
-    if (cc.enabled === false) return false;
+    const gc = ovConf.file.grok_code || ovConf.file.grok || {};
+    if (gc.enabled === false) return false;
     return true;
   }
 
@@ -134,7 +148,7 @@ export function loadConfig() {
   const configPath = ovConf?.configPath || cliConf?.configPath || null;
 
   const server = ovFile.server || {};
-  const cc = ovFile.claude_code || {};
+  const gc = { ...(ovFile.grok_code || ovFile.grok || {}), ...loadGrokPluginSettings(cliFile) };
 
   // baseUrl: env → ovcli.url → ov.server.url → http://{host}:{port}
   const envUrl = str(process.env.OPENVIKING_URL, null) || str(process.env.OPENVIKING_BASE_URL, null);
@@ -151,62 +165,61 @@ export function loadConfig() {
     baseUrl = `http://${host}:${port}`;
   }
 
-  // apiKey: env → ovcli.api_key → cc.apiKey → server.root_api_key
+  // apiKey: env → ovcli.api_key → gc.apiKey → server.root_api_key
   // Accepts OPENVIKING_BEARER_TOKEN or OPENVIKING_API_KEY (sent as Bearer either way).
   const apiKey = str(process.env.OPENVIKING_BEARER_TOKEN, null)
     || str(process.env.OPENVIKING_API_KEY, null)
     || str(cliFile.api_key, null)
-    || str(cc.apiKey, null)
+    || str(gc.apiKey, null)
     || str(server.root_api_key, "");
 
-  // accountId: env → ovcli.account → cc.accountId → ""
+  // accountId: env → ovcli.account → gc.accountId → ""
   const accountId = str(process.env.OPENVIKING_ACCOUNT, null)
     || str(cliFile.account, null)
-    || str(cc.accountId, "");
+    || str(gc.accountId, "");
 
-  // userId: env → ovcli.user → cc.userId → ""
+  // userId: env → ovcli.user → gc.userId → ""
   const userId = str(process.env.OPENVIKING_USER, null)
     || str(cliFile.user, null)
-    || str(cc.userId, "");
+    || str(gc.userId, "");
 
   const peerId = str(process.env.OPENVIKING_PEER_ID, null)
-    || str(cc.peerId, null)
-    || str(cc.peer_id, "");
-  const workspacePeer = envBool("OPENVIKING_WORKSPACE_PEER") ?? (cc.workspacePeer !== false);
+    || str(gc.peerId, null)
+    || str(gc.peer_id, "");
+  const workspacePeer = envBool("OPENVIKING_WORKSPACE_PEER") ?? (gc.workspacePeer !== false);
   const recallPeerScopeRaw = str(
     process.env.OPENVIKING_RECALL_PEER_SCOPE,
-    str(cc.recallPeerScope, "all"),
+    str(gc.recallPeerScope, "all"),
   );
   const recallPeerScope = recallPeerScopeRaw === "actor" ? "actor" : "all";
 
-  // Each tuning field follows env > ovcli.conf is N/A (CLI doesn't carry tuning) >
-  // ov.conf cc.* > built-in default. Env var names are flat OPENVIKING_* (no CC
-  // namespace) to match the existing connection-field convention; they are only
-  // read by this plugin's hooks.
+  // Each tuning field follows env > ovcli.conf plugin.grok > ov.conf grok_code >
+  // built-in default. Env var names are flat OPENVIKING_* to match the official
+  // Claude/Codex plugins; they are only read by this plugin's hooks.
 
-  const debug = envBool("OPENVIKING_DEBUG") ?? (cc.debug === true);
+  const debug = envBool("OPENVIKING_DEBUG") ?? (gc.debug === true);
   const defaultLogPath = join(homedir(), ".openviking", "logs", "grok-hooks.log");
   const debugLogPath = str(process.env.OPENVIKING_DEBUG_LOG, defaultLogPath);
 
   const timeoutMs = Math.max(1000, Math.floor(num(
     process.env.OPENVIKING_TIMEOUT_MS,
-    num(cc.timeoutMs, 15000),
+    num(gc.timeoutMs, 15000),
   )));
   const captureTimeoutMs = Math.max(1000, Math.floor(num(
     process.env.OPENVIKING_CAPTURE_TIMEOUT_MS,
-    num(cc.captureTimeoutMs, Math.max(timeoutMs * 2, 30000)),
+    num(gc.captureTimeoutMs, Math.max(timeoutMs * 2, 30000)),
   )));
 
-  // captureMode whitelist: env or cc, only "keyword" flips it; anything else → "semantic"
-  const captureModeRaw = str(process.env.OPENVIKING_CAPTURE_MODE, str(cc.captureMode, "semantic"));
+  // captureMode whitelist: env or grok_code, only "keyword" flips it; anything else → "semantic"
+  const captureModeRaw = str(process.env.OPENVIKING_CAPTURE_MODE, str(gc.captureMode, "semantic"));
   const captureMode = captureModeRaw === "keyword" ? "keyword" : "semantic";
 
   // bypassSessionPatterns: env CSV overrides ov.conf array entirely
   const envPatterns = str(process.env.OPENVIKING_BYPASS_SESSION_PATTERNS, null);
   const bypassSessionPatterns = envPatterns
     ? envPatterns.split(",").map((s) => s.trim()).filter(Boolean)
-    : (Array.isArray(cc.bypassSessionPatterns)
-        ? cc.bypassSessionPatterns.filter((p) => typeof p === "string" && p.trim())
+    : (Array.isArray(gc.bypassSessionPatterns)
+        ? gc.bypassSessionPatterns.filter((p) => typeof p === "string" && p.trim())
         : []);
 
   return {
@@ -220,78 +233,78 @@ export function loadConfig() {
     timeoutMs,
 
     // Recall
-    autoRecall: envBool("OPENVIKING_AUTO_RECALL") ?? (cc.autoRecall !== false),
+    autoRecall: envBool("OPENVIKING_AUTO_RECALL") ?? (gc.autoRecall !== false),
     recallLimit: Math.max(1, Math.floor(num(
       process.env.OPENVIKING_RECALL_LIMIT,
-      num(cc.recallLimit, 6),
+      num(gc.recallLimit, 6),
     ))),
     scoreThreshold: Math.min(1, Math.max(0, num(
       process.env.OPENVIKING_SCORE_THRESHOLD,
-      num(cc.scoreThreshold, 0.35),
+      num(gc.scoreThreshold, 0.35),
     ))),
     minQueryLength: Math.max(1, Math.floor(num(
       process.env.OPENVIKING_MIN_QUERY_LENGTH,
-      num(cc.minQueryLength, 3),
+      num(gc.minQueryLength, 3),
     ))),
-    logRankingDetails: envBool("OPENVIKING_LOG_RANKING_DETAILS") ?? (cc.logRankingDetails === true),
+    logRankingDetails: envBool("OPENVIKING_LOG_RANKING_DETAILS") ?? (gc.logRankingDetails === true),
     // Ported from openclaw DEFAULT_RECALL_MAX_CONTENT_CHARS / DEFAULT_RECALL_TOKEN_BUDGET /
     // DEFAULT_RECALL_PREFER_ABSTRACT (openclaw-plugin/config.ts:44-47).
     recallMaxContentChars: Math.max(50, Math.floor(num(
       process.env.OPENVIKING_RECALL_MAX_CONTENT_CHARS,
-      num(cc.recallMaxContentChars, 500),
+      num(gc.recallMaxContentChars, 500),
     ))),
     recallTokenBudget: Math.max(200, Math.floor(num(
       process.env.OPENVIKING_RECALL_TOKEN_BUDGET,
-      num(cc.recallTokenBudget, 2000),
+      num(gc.recallTokenBudget, 2000),
     ))),
-    recallPreferAbstract: envBool("OPENVIKING_RECALL_PREFER_ABSTRACT") ?? (cc.recallPreferAbstract !== false),
+    recallPreferAbstract: envBool("OPENVIKING_RECALL_PREFER_ABSTRACT") ?? (gc.recallPreferAbstract !== false),
     recallPeerScope,
 
     // Capture
-    autoCapture: envBool("OPENVIKING_AUTO_CAPTURE") ?? (cc.autoCapture !== false),
+    autoCapture: envBool("OPENVIKING_AUTO_CAPTURE") ?? (gc.autoCapture !== false),
     captureMode,
     captureMaxLength: Math.max(200, Math.floor(num(
       process.env.OPENVIKING_CAPTURE_MAX_LENGTH,
-      num(cc.captureMaxLength, 24000),
+      num(gc.captureMaxLength, 24000),
     ))),
     captureTimeoutMs,
     // Default true: a "memory plugin" without assistant-side capture only sees half the
     // conversation, which makes extraction noticeably worse. Subagent capture has always
     // pushed both sides (subagent-stop.mjs); this aligns the main-session path with that
     // behavior. Operators who want the old user-only behavior can still set
-    // OPENVIKING_CAPTURE_ASSISTANT_TURNS=0 or claude_code.captureAssistantTurns=false.
-    captureAssistantTurns: envBool("OPENVIKING_CAPTURE_ASSISTANT_TURNS") ?? (cc.captureAssistantTurns !== false),
+    // OPENVIKING_CAPTURE_ASSISTANT_TURNS=0 or grok_code.captureAssistantTurns=false.
+    captureAssistantTurns: envBool("OPENVIKING_CAPTURE_ASSISTANT_TURNS") ?? (gc.captureAssistantTurns !== false),
     // P0-2: client-driven commit threshold (ported from openclaw afterTurn).
     // Default 20000 aligns with openclaw; lower values produce archives faster.
     commitTokenThreshold: Math.max(1000, Math.floor(num(
       process.env.OPENVIKING_COMMIT_TOKEN_THRESHOLD,
-      num(cc.commitTokenThreshold, 20000),
+      num(gc.commitTokenThreshold, 20000),
     ))),
     commitKeepRecentCount: Math.max(0, Math.floor(num(
       process.env.OPENVIKING_COMMIT_KEEP_RECENT_COUNT,
-      num(cc.commitKeepRecentCount, 10),
+      num(gc.commitKeepRecentCount, 10),
     ))),
 
     // P0-3b: token budget for session-start archive-overview fetch
     resumeContextBudget: Math.max(1024, Math.floor(num(
       process.env.OPENVIKING_RESUME_CONTEXT_BUDGET,
-      num(cc.resumeContextBudget, 32000),
+      num(gc.resumeContextBudget, 32000),
     ))),
 
     // Session-start profile injection: pull profile.md + ls of preferences/
     // and entities/ on every session_start (startup/clear/resume/compact),
     // independent of UserPromptSubmit auto-recall. Subagents skip entirely
     // (handled by subagent-start.mjs not invoking buildProfileBlock).
-    noAutoInject: envBool("OPENVIKING_NO_AUTO_INJECT") ?? (cc.noAutoInject === true),
+    noAutoInject: envBool("OPENVIKING_NO_AUTO_INJECT") ?? (gc.noAutoInject === true),
     profileTokenBudget: Math.max(500, Math.floor(num(
       process.env.OPENVIKING_PROFILE_TOKEN_BUDGET,
-      num(cc.profileTokenBudget, 10000),
+      num(gc.profileTokenBudget, 10000),
     ))),
 
-    skillExperience: envBool("OPENVIKING_SKILL_EXPERIENCE") ?? (cc.skillExperience === true),
+    skillExperience: envBool("OPENVIKING_SKILL_EXPERIENCE") ?? (gc.skillExperience === true),
     skillExperienceLimit: Math.max(1, Math.floor(num(
       process.env.OPENVIKING_SKILL_EXPERIENCE_LIMIT,
-      num(cc.skillExperienceLimit, 3),
+      num(gc.skillExperienceLimit, 3),
     ))),
 
     // P1-15: bypass patterns (glob) — when the CC session_id or cwd matches,
@@ -305,7 +318,7 @@ export function loadConfig() {
     // pre-compact stays sync regardless (CC rewrites transcript right after).
     // Default on — OV commit is already half-async server-side, so eventual
     // consistency matches the sync path.
-    writePathAsync: envBool("OPENVIKING_WRITE_PATH_ASYNC") ?? (cc.writePathAsync !== false),
+    writePathAsync: envBool("OPENVIKING_WRITE_PATH_ASYNC") ?? (gc.writePathAsync !== false),
 
     // Debug
     debug,

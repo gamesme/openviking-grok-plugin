@@ -1,13 +1,8 @@
 {
   "openviking": {
-    "type": "stdio",
-    "command": "sh",
+    "command": "node",
     "args": [
-      "./servers/run-mcp.sh"
-    ],
-    "env": {
-      "OPENVIKING_WORKSPACE_PEER": "0",
-      "OPENVIKING_PEER_ID": "grok"
-    }
+      "${GROK_PLUGIN_ROOT}/servers/mcp-proxy.mjs"
+    ]
   }
 }

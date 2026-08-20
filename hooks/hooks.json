@@ -6,12 +6,7 @@
           {
             "type": "command",
             "command": "node ${GROK_PLUGIN_ROOT}/scripts/session-start.mjs",
-            "timeout": 120,
-            "env": {
-              "OPENVIKING_DEBUG_LOG": "${HOME}/.openviking/logs/grok-hooks.log",
-              "OPENVIKING_WORKSPACE_PEER": "0",
-              "OPENVIKING_PEER_ID": "grok"
-            }
+            "timeout": 120
           }
         ]
       }
@@ -22,11 +17,7 @@
           {
             "type": "command",
             "command": "node ${GROK_PLUGIN_ROOT}/scripts/auto-recall.mjs",
-            "timeout": 15,
-            "env": {
-              "OPENVIKING_WORKSPACE_PEER": "0",
-              "OPENVIKING_PEER_ID": "grok"
-            }
+            "timeout": 15
           }
         ]
       }
@@ -49,11 +40,7 @@
           {
             "type": "command",
             "command": "node ${GROK_PLUGIN_ROOT}/scripts/auto-capture.mjs",
-            "timeout": 45,
-            "env": {
-              "OPENVIKING_WORKSPACE_PEER": "0",
-              "OPENVIKING_PEER_ID": "grok"
-            }
+            "timeout": 45
           }
         ]
       }
@@ -64,11 +51,7 @@
           {
             "type": "command",
             "command": "node ${GROK_PLUGIN_ROOT}/scripts/pre-compact.mjs",
-            "timeout": 30,
-            "env": {
-              "OPENVIKING_WORKSPACE_PEER": "0",
-              "OPENVIKING_PEER_ID": "grok"
-            }
+            "timeout": 30
           }
         ]
       }
@@ -79,11 +62,7 @@
           {
             "type": "command",
             "command": "node ${GROK_PLUGIN_ROOT}/scripts/session-end.mjs",
-            "timeout": 30,
-            "env": {
-              "OPENVIKING_WORKSPACE_PEER": "0",
-              "OPENVIKING_PEER_ID": "grok"
-            }
+            "timeout": 30
           }
         ]
       }
