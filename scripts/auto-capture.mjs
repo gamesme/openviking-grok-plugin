@@ -93,9 +93,16 @@ async function main() {
 
   const cached = readJsonState(promptStateName(input.sessionId)) || {};
   const fromTranscript = readLatestTurnFromSession(input.sessionId, input.cwd);
-  const userText = extractUserQuery(cached.prompt || "")
-    || cached.prompt
-    || fromTranscript.prompt;
+  const cachedPromptId = String(cached.promptId || "").trim();
+  // A cancelled report can land after the next UserPromptSubmit, which
+  // overwrites grok-last-prompt-*.json (and the latest transcript turn).
+  // Pairing that newer user text with this turn's assistant output pollutes
+  // memory. Missing a user message is a valid downgrade; a mismatched one is not.
+  const promptCacheFresh = !input.promptId || !cachedPromptId
+    || input.promptId === cachedPromptId;
+  const userText = promptCacheFresh
+    ? (extractUserQuery(cached.prompt || "") || cached.prompt || fromTranscript.prompt)
+    : "";
   let assistantText = input.lastAssistantMessage || fromTranscript.assistant;
   const marker = formatTurnEndMarker(meta);
   if (meta.outcome !== "completed") {

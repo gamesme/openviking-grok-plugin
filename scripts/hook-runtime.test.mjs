@@ -126,6 +126,59 @@ test("Stop capture posts peer grok from two different cwds", async () => {
   }
 });
 
+test("StopCancelled does not attach a newer cached user prompt", async () => {
+  const mock = await startMockOv();
+  const pluginData = mkdtempSync(join(tmpdir(), "ov-pdata-"));
+  mkdirSync(pluginData, { recursive: true });
+  const sessionId = "stale-prompt-sess";
+  const cwd = "/tmp/stale-prompt";
+  const env = harnessEnv(mock.url, pluginData);
+  const staleUser = "NPLUS1 user asked about completely unrelated follow-up work after the interrupt.";
+  const cancelledAssistant = "Turn N was halfway through the original capture explanation when interrupted.";
+
+  writeFileSync(join(pluginData, `grok-last-prompt-${sessionId}.json`), JSON.stringify({
+    sessionId,
+    promptId: "p-nplus1",
+    prompt: staleUser,
+  }));
+
+  const histDir = join(env.GROK_HOME, "sessions", encodeURIComponent(cwd), sessionId);
+  mkdirSync(histDir, { recursive: true });
+  writeFileSync(join(histDir, "chat_history.jsonl"), [
+    JSON.stringify({ type: "user", content: [{ type: "text", text: "<user_query>Turn N original question about capture.</user_query>" }] }),
+    JSON.stringify({ type: "assistant", content: [{ type: "text", text: cancelledAssistant }] }),
+    JSON.stringify({ type: "user", content: [{ type: "text", text: `<user_query>${staleUser}</user_query>` }] }),
+  ].join("\n"));
+
+  try {
+    const result = await runHook("scripts/auto-capture.mjs", {
+      hookEventName: "stop_cancelled",
+      sessionId,
+      promptId: "p-n",
+      cwd,
+      reason: "user_interrupt",
+      cancelledBy: "user",
+      cancelTrigger: "ctrl_c",
+      lastAssistantMessage: cancelledAssistant,
+    }, env);
+    assert.equal(result.code, 0, result.stderr);
+    const userMsgs = mock.requests.filter((r) => r.url.includes("/messages") && r.body.role === "user");
+    for (const msg of userMsgs) {
+      assert.equal(
+        String(msg.body.content || "").includes("NPLUS1"),
+        false,
+        `stale N+1 user prompt leaked into capture: ${msg.body.content}`,
+      );
+    }
+    const assistant = mock.requests.find((r) => r.url.includes("/messages") && r.body.role === "assistant");
+    assert.ok(assistant, `messages=${JSON.stringify(mock.requests)}`);
+    assert.match(assistant.body.content, /Turn N was halfway/);
+    assert.match(assistant.body.content, /event=StopCancelled/);
+  } finally {
+    await mock.close();
+  }
+});
+
 test("StopCancelled records termination reason and still posts to OV", async () => {
   const mock = await startMockOv();
   const pluginData = mkdtempSync(join(tmpdir(), "ov-pdata-"));
