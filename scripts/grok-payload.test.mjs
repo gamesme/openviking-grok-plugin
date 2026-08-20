@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeHookInput, parseHookInput } from "./grok-payload.mjs";
+import { normalizeHookEventName, normalizeHookInput, parseHookInput } from "./grok-payload.mjs";
+import { classifyTurnEnd, formatTurnEndMarker, isSessionEndStop } from "./lib/turn-end.mjs";
 import { classifyTool, evaluatePreToolUse } from "./uri-guard.mjs";
 import {
   extractUserQuery,
@@ -69,3 +70,60 @@ test("parseHookInput tolerates empty", () => {
   assert.deepEqual(parseHookInput(""), {});
   assert.deepEqual(parseHookInput("{"), {});
 });
+
+test("normalizeHookEventName maps snake_case and aliases", () => {
+  assert.equal(normalizeHookEventName("stop_cancelled"), "StopCancelled");
+  assert.equal(normalizeHookEventName("StopFailure"), "StopFailure");
+  assert.equal(normalizeHookEventName("subagent_end"), "SubagentStop");
+  assert.equal(normalizeHookEventName("", "stop_failure"), "StopFailure");
+});
+
+test("normalizeHookInput reads StopCancelled / StopFailure fields", () => {
+  const cancelled = normalizeHookInput({
+    hookEventName: "stop_cancelled",
+    sessionId: "s1",
+    reason: "user_interrupt",
+    cancelledBy: "user",
+    cancelTrigger: "ctrl_c",
+    lastAssistantMessage: "halfway",
+    subagentType: "explore",
+    agentId: "child-1",
+  });
+  assert.equal(cancelled.hookEventName, "StopCancelled");
+  assert.equal(cancelled.reason, "user_interrupt");
+  assert.equal(cancelled.cancelledBy, "user");
+  assert.equal(cancelled.cancelTrigger, "ctrl_c");
+  assert.equal(cancelled.agentId, "child-1");
+  assert.equal(cancelled.subagentType, "explore");
+
+  const failed = normalizeHookInput({
+    hookEventName: "StopFailure",
+    error: "rate_limit",
+    errorDetails: "429 too many requests",
+  });
+  assert.equal(failed.hookEventName, "StopFailure");
+  assert.equal(failed.error, "rate_limit");
+  assert.equal(failed.errorDetails, "429 too many requests");
+});
+
+test("classifyTurnEnd distinguishes completed / cancelled / failed", () => {
+  const done = classifyTurnEnd({ hookEventName: "Stop", reason: "end_turn" });
+  assert.equal(done.outcome, "completed");
+  assert.equal(isSessionEndStop({ hookEventName: "Stop", reason: "shutdown" }), true);
+  assert.equal(isSessionEndStop({ hookEventName: "Stop", reason: "end_turn" }), false);
+
+  const cancelled = classifyTurnEnd({
+    hookEventName: "StopCancelled",
+    reason: "user_interrupt",
+    cancelledBy: "user",
+    cancelTrigger: "esc",
+  });
+  assert.equal(cancelled.outcome, "cancelled");
+  assert.match(formatTurnEndMarker(cancelled), /event=StopCancelled/);
+  assert.match(formatTurnEndMarker(cancelled), /reason=user_interrupt/);
+
+  const failed = classifyTurnEnd({ hookEventName: "StopFailure", error: "rate_limit" });
+  assert.equal(failed.outcome, "failed");
+  assert.equal(failed.reason, "rate_limit");
+});
+

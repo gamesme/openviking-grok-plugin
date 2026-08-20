@@ -1,10 +1,10 @@
 {
   "name": "openviking-grok-plugin",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "OpenViking memory plugin for Grok — semantic long-term memory",
   "type": "module",
   "scripts": {
-    "test": "node --test scripts/*.test.mjs"
+    "test": "node --test scripts/*.test.mjs scripts/lib/*.test.mjs"
   },
   "private": true
 }

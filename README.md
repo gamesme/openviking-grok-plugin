@@ -4,19 +4,23 @@ Grok-side counterpart of the official Claude Code / Codex memory plugins, and si
 
 It reuses the same `ovcli.conf` credentials, stdio MCP proxy, recall, and session APIs. Session IDs are stored as `gk-<grokSessionId>`.
 
-Peer identity is **not** hardcoded. Same chain as the [official Claude / Codex plugins](https://github.com/volcengine/OpenViking/tree/main/examples):
+Peer identity is **fixed to `grok`** unless you explicitly override it:
 
-1. `OPENVIKING_*` environment variables (`OPENVIKING_PEER_ID`, `OPENVIKING_WORKSPACE_PEER`, …)
-2. `~/.openviking/ovcli.conf` (`plugin.grok` overrides `plugin`)
-3. `~/.openviking/ov.conf` (`grok_code` section)
-4. Workspace-path derivation, unless `OPENVIKING_WORKSPACE_PEER=0`
+1. `OPENVIKING_PEER_ID`
+2. `~/.openviking/ovcli.conf` (`plugin.grok.peerId`)
+3. `~/.openviking/ov.conf` (`grok_code.peerId`)
+4. Default: `grok`
 
-On Grok, a typical host config is `[shell_environment_policy.set]` in `~/.grok/config.toml`.
+Working-directory derivation is not used. Hooks and the MCP proxy share `resolveActorPeer()`.
+
+Hook state lives in `GROK_PLUGIN_DATA` (fallback `~/.grok/plugin-data/openviking-memory`). Grok files previously written to `~/.openviking/state/` are copied once and still readable.
 
 ## What works on Grok
 
 - MCP tools via `servers/mcp-proxy.mjs` → OpenViking `/mcp`
-- Stop / PreCompact / SessionEnd capture and commit
+- Turn capture on `Stop`, `StopFailure`, and `StopCancelled` (interrupt / API error / completion)
+- Subagent capture on `SubagentStart` / `SubagentStop`
+- PreCompact / SessionEnd commit
 - `viking://` URI guard on Read/Grep/Glob
 - `~/.openviking/last_inject.md` and `last_recall.md` written by hooks
 - `/ov` status command
@@ -42,7 +46,7 @@ grok plugin install --trust ./openviking-grok-plugin
 
 Then enable it (`[plugins] enabled = ["openviking-memory"]` or Space in `/plugins`) and start a new Grok session.
 
-Credentials come from `~/.openviking/ovcli.conf` (or `OPENVIKING_*` env vars). Debug: `OPENVIKING_DEBUG=1`.
+Credentials come from `~/.openviking/ovcli.conf` (or `OPENVIKING_URL` / `OPENVIKING_API_KEY`). Debug: `OPENVIKING_DEBUG=1`.
 
 ## Verify
 

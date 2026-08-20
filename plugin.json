@@ -1,6 +1,6 @@
 {
   "name": "openviking-memory",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "OpenViking long-term memory for Grok. MCP tools plus session capture, recall files, and viking:// URI guards.",
   "author": {
     "name": "gamesme",
