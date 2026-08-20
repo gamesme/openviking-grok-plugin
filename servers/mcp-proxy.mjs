@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * stdio -> streamable-HTTP MCP proxy for the OpenViking Claude Code plugin.
+ * stdio -> streamable-HTTP MCP proxy for the OpenViking Grok plugin.
  *
  * Claude Code starts this process as a local stdio MCP server. The proxy reads
  * the same OpenViking credential sources as the lifecycle hooks, forwards
@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { loadConfig } from "../scripts/config.mjs";
 import { createLogger } from "../scripts/debug-log.mjs";
 import { createOpenVikingMcpProxy } from "../scripts/shared/mcp-proxy-core.mjs";
-import { resolveEffectivePeerId } from "../scripts/shared/workspace-peer.mjs";
+import { resolveActorPeer } from "../scripts/lib/identity.mjs";
 
 const DEFAULT_TIMEOUT_MS = 15000;
 
@@ -37,7 +37,7 @@ function uniq(values) {
 
 function readProxyConfig() {
   const cfg = loadConfig();
-  const effectivePeer = resolveEffectivePeerId({ cfg, cwd: process.cwd() });
+  const effectivePeer = resolveActorPeer(cfg);
   return {
     mcpUrl: `${trimSlash(cfg.baseUrl)}/mcp`,
     apiKey: cfg.apiKey || "",

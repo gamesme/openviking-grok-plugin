@@ -6,7 +6,8 @@ import { join } from "node:path";
 
 import { isPluginEnabled, loadConfig } from "./config.mjs";
 import { makeFetchJSON } from "./lib/ov-session.mjs";
-import { readJsonState } from "./lib/state.mjs";
+import { getEffectivePeerId } from "./lib/identity.mjs";
+import { resolveStateDir, readJsonState } from "./lib/state.mjs";
 
 function fmtAge(ts) {
   if (!ts) return "never";
@@ -38,8 +39,10 @@ async function main() {
   const t0 = Date.now();
   const health = await fetchJSON("/health");
   console.log(`OpenViking — ${cfg.baseUrl}  (${health.ok ? "ok" : "fail"} /health ${Date.now() - t0}ms)`);
+  const peer = getEffectivePeerId(cfg);
   console.log(`Identity: account=${cfg.accountId || "(unset)"}  user=${cfg.userId || "(server-resolved)"}`);
-  console.log(`Harness: grok  peer=${cfg.peerId || "(none)"}  session prefix: gk-`);
+  console.log(`Harness: grok  peer=${peer.peerId} (${peer.source})  session prefix: gk-`);
+  console.log(`State dir: ${resolveStateDir()}`);
   console.log("");
   console.log(`autoRecall=${cfg.autoRecall}  autoCapture=${cfg.autoCapture}  noAutoInject=${cfg.noAutoInject}`);
   console.log("");

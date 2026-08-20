@@ -7,9 +7,8 @@
  *   3. ov.conf fields (server section + grok_code section)
  *   4. Built-in defaults
  *
- * Peer identity is never hardcoded. OPENVIKING_PEER_ID / OPENVIKING_WORKSPACE_PEER
- * come from the host env (e.g. ~/.grok/config.toml shell_environment_policy),
- * ovcli.conf plugin.grok, or ov.conf grok_code — then workspace derivation.
+ * Peer identity: OPENVIKING_PEER_ID, ovcli.conf plugin.grok, ov.conf grok_code,
+ * then the Grok default `grok`. Working-directory derivation is never used.
  *
  * Enable/disable:
  *   - OPENVIKING_MEMORY_ENABLED env var (0/false/no = off, 1/true/yes = on)
@@ -32,11 +31,9 @@
  *   Lifecycle / behavior:
  *     OPENVIKING_TIMEOUT_MS, OPENVIKING_CAPTURE_TIMEOUT_MS, OPENVIKING_WRITE_PATH_ASYNC,
  *     OPENVIKING_BYPASS_SESSION, OPENVIKING_BYPASS_SESSION_PATTERNS (CSV),
- *     OPENVIKING_WORKSPACE_PEER
+ *     OPENVIKING_WORKSPACE_PEER (accepted, ignored — Grok never derives peer from cwd)
  *   Profile injection (session_start):
  *     OPENVIKING_NO_AUTO_INJECT, OPENVIKING_PROFILE_TOKEN_BUDGET
- *   Skill experience injection (PostToolUse Read):
- *     OPENVIKING_SKILL_EXPERIENCE, OPENVIKING_SKILL_EXPERIENCE_LIMIT
  *   Misc:
  *     OPENVIKING_MEMORY_ENABLED, OPENVIKING_DEBUG, OPENVIKING_DEBUG_LOG,
  *     OPENVIKING_CONFIG_FILE, OPENVIKING_CLI_CONFIG_FILE
@@ -186,7 +183,9 @@ export function loadConfig() {
   const peerId = str(process.env.OPENVIKING_PEER_ID, null)
     || str(gc.peerId, null)
     || str(gc.peer_id, "");
-  const workspacePeer = envBool("OPENVIKING_WORKSPACE_PEER") ?? (gc.workspacePeer !== false);
+  // Grok's actor peer is never derived from cwd. The env/config flag is
+  // accepted so existing operator configs keep parsing, then ignored.
+  const workspacePeer = false;
   const recallPeerScopeRaw = str(
     process.env.OPENVIKING_RECALL_PEER_SCOPE,
     str(gc.recallPeerScope, "all"),
@@ -301,21 +300,15 @@ export function loadConfig() {
       num(gc.profileTokenBudget, 10000),
     ))),
 
-    skillExperience: envBool("OPENVIKING_SKILL_EXPERIENCE") ?? (gc.skillExperience === true),
-    skillExperienceLimit: Math.max(1, Math.floor(num(
-      process.env.OPENVIKING_SKILL_EXPERIENCE_LIMIT,
-      num(gc.skillExperienceLimit, 3),
-    ))),
-
-    // P1-15: bypass patterns (glob) — when the CC session_id or cwd matches,
+    // P1-15: bypass patterns (glob) — when the Grok sessionId or cwd matches,
     // skip capture/recall entirely. Useful for one-off scratch sessions that
     // should not contaminate OV.
     bypassSessionPatterns,
     bypassSession: envBool("OPENVIKING_BYPASS_SESSION") ?? false,
 
     // Write-path async: auto-capture / session-end / subagent-stop fire-and-
-    // forget via a detached child process, so the hook returns to CC instantly.
-    // pre-compact stays sync regardless (CC rewrites transcript right after).
+    // forget via a detached child process, so the hook returns to Grok instantly.
+    // pre-compact stays sync regardless (the host rewrites the transcript right after).
     // Default on — OV commit is already half-async server-side, so eventual
     // consistency matches the sync path.
     writePathAsync: envBool("OPENVIKING_WRITE_PATH_ASYNC") ?? (gc.writePathAsync !== false),
