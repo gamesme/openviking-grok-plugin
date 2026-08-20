@@ -1,0 +1,92 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${GROK_PLUGIN_ROOT}/scripts/session-start.mjs",
+            "timeout": 120,
+            "env": {
+              "OPENVIKING_DEBUG_LOG": "${HOME}/.openviking/logs/grok-hooks.log",
+              "OPENVIKING_WORKSPACE_PEER": "0",
+              "OPENVIKING_PEER_ID": "grok"
+            }
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${GROK_PLUGIN_ROOT}/scripts/auto-recall.mjs",
+            "timeout": 15,
+            "env": {
+              "OPENVIKING_WORKSPACE_PEER": "0",
+              "OPENVIKING_PEER_ID": "grok"
+            }
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Glob|Grep|read_file|list_dir|grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${GROK_PLUGIN_ROOT}/scripts/uri-guard.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${GROK_PLUGIN_ROOT}/scripts/auto-capture.mjs",
+            "timeout": 45,
+            "env": {
+              "OPENVIKING_WORKSPACE_PEER": "0",
+              "OPENVIKING_PEER_ID": "grok"
+            }
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${GROK_PLUGIN_ROOT}/scripts/pre-compact.mjs",
+            "timeout": 30,
+            "env": {
+              "OPENVIKING_WORKSPACE_PEER": "0",
+              "OPENVIKING_PEER_ID": "grok"
+            }
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${GROK_PLUGIN_ROOT}/scripts/session-end.mjs",
+            "timeout": 30,
+            "env": {
+              "OPENVIKING_WORKSPACE_PEER": "0",
+              "OPENVIKING_PEER_ID": "grok"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

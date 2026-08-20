@@ -1,0 +1,13 @@
+{
+  "openviking": {
+    "type": "stdio",
+    "command": "sh",
+    "args": [
+      "./servers/run-mcp.sh"
+    ],
+    "env": {
+      "OPENVIKING_WORKSPACE_PEER": "0",
+      "OPENVIKING_PEER_ID": "grok"
+    }
+  }
+}
